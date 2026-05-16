@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 app.py)",
+      "Bash(sleep 3 echo \"PID: $!\" curl -s http://localhost:5001/)",
+      "Bash(curl -s \"http://localhost:5001/api/stock/AAPL?period=1mo\")",
+      "Bash(python3 -c ' *)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(pkill -f \"python3 app.py\")",
+      "Bash(curl -s http://localhost:5001/)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('Dividende:', d['financials']['dividend_yield'], '%'\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(x['name'],'→',x['symbol'],x['exchange']\\) for x in d[:4]]\")",
+      "Bash(curl -s \"http://localhost:5001/api/search?q=louis+vuitton\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(x['name'],'→',x['symbol']\\) for x in d[:3]]\")",
+      "Bash(curl -s \"http://localhost:5001/api/search?q=total\")",
+      "Bash(curl -s \"http://localhost:5001/api/stock/MC.PA?period=1y\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('Secteur:', d['company']['sector']\\); print\\('Industrie:', d['company']['industry']\\)\")"
+    ]
+  }
+}

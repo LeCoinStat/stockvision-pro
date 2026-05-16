@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StockVision Pro — Analyse Boursière IA</title>
+  <link rel="stylesheet" href="/static/css/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+</head>
+<body>
+<!-- ══════════════════════  HEADER  ══════════════════════ -->
+<header class="header">
+  <div class="header-left">
+    <div class="logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+      <span>StockVision <em>Pro</em></span>
+    </div>
+  </div>
+
+  <div class="search-wrapper">
+    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input id="searchInput" type="text" placeholder="Tapez le nom d'une entreprise ou son symbole (ex : Apple, LVMH, Tesla…)" autocomplete="off" />
+    <div id="searchSuggestions" class="search-suggestions hidden"></div>
+  </div>
+
+  <div class="header-right">
+    <span id="marketStatus" class="market-badge">● Marché</span>
+  </div>
+</header>
+
+<!-- ══════════════════════  LAYOUT  ══════════════════════ -->
+<div class="layout">
+
+  <!-- ── SIDEBAR ────────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <h3 class="sidebar-title">Actions populaires</h3>
+      <div class="popular-grid" id="popularGrid"></div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3 class="sidebar-title">Ma liste de suivi <button id="clearWatchlist" class="btn-ghost" title="Vider">✕</button></h3>
+      <div id="watchlistContainer" class="watchlist-empty">
+        <p>Recherchez une action et cliquez sur ★ pour l'ajouter</p>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3 class="sidebar-title">Comparaison</h3>
+      <div class="compare-inputs">
+        <input id="compareInput" type="text" placeholder="Ex : AAPL,TSLA,MSFT" />
+        <button id="compareBtn" class="btn-primary btn-sm">Comparer</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── MAIN ───────────────────────────────────────────── -->
+  <main class="main" id="mainContent">
+
+    <!-- WELCOME SCREEN -->
+    <div id="welcomeScreen" class="welcome">
+      <div class="welcome-inner">
+        <div class="welcome-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+        </div>
+        <h1>Bienvenue sur StockVision Pro</h1>
+        <p>Analysez n'importe quelle action en quelques secondes grâce à des indicateurs professionnels et des recommandations alimentées par l'intelligence artificielle.</p>
+        <div class="welcome-pills">
+          <button class="pill" onclick="loadStock('AAPL')">🍎 Apple</button>
+          <button class="pill" onclick="loadStock('TSLA')">⚡ Tesla</button>
+          <button class="pill" onclick="loadStock('MC.PA')">👜 LVMH</button>
+          <button class="pill" onclick="loadStock('NVDA')">🎮 Nvidia</button>
+          <button class="pill" onclick="loadStock('TTE.PA')">🛢 TotalEnergies</button>
+          <button class="pill" onclick="loadStock('AMZN')">📦 Amazon</button>
+        </div>
+        <p class="welcome-hint">Ou recherchez directement dans la barre de recherche ci-dessus</p>
+      </div>
+    </div>
+
+    <!-- STOCK DASHBOARD (hidden by default) -->
+    <div id="dashboard" class="hidden">
+
+      <!-- Stock header -->
+      <div class="stock-header">
+        <div class="stock-header-left">
+          <img id="stockLogo" class="stock-logo hidden" src="" alt="" />
+          <div>
+            <div class="stock-name-row">
+              <h2 id="stockName">—</h2>
+              <span id="stockTicker" class="ticker-badge">—</span>
+              <span id="stockExchange" class="exchange-tag">—</span>
+              <button id="watchlistBtn" class="watchlist-btn" title="Ajouter à la liste de suivi">☆</button>
+            </div>
+            <div class="stock-meta" id="stockMeta">—</div>
+          </div>
+        </div>
+        <div class="stock-header-right">
+          <div class="price-block">
+            <span id="currentPrice" class="price-big">—</span>
+            <span id="currency" class="currency">—</span>
+          </div>
+          <div id="dayChange" class="day-change">—</div>
+        </div>
+      </div>
+
+      <!-- Period selector -->
+      <div class="period-bar">
+        <span class="period-label">Période :</span>
+        <div class="period-btns">
+          <button class="period-btn" data-period="5d">5J</button>
+          <button class="period-btn" data-period="1mo">1M</button>
+          <button class="period-btn" data-period="3mo">3M</button>
+          <button class="period-btn" data-period="6mo">6M</button>
+          <button class="period-btn active" data-period="1y">1A</button>
+          <button class="period-btn" data-period="2y">2A</button>
+          <button class="period-btn" data-period="5y">5A</button>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <nav class="tab-nav">
+        <button class="tab-btn active" data-tab="overview">Vue d'ensemble</button>
+        <button class="tab-btn" data-tab="technical">Analyse technique</button>
+        <button class="tab-btn" data-tab="fundamentals">Fondamentaux</button>
+        <button class="tab-btn" data-tab="ai">🤖 Analyse IA</button>
+        <button class="tab-btn" data-tab="compare">Comparaison</button>
+      </nav>
+
+      <!-- ─── TAB: OVERVIEW ─────────────────────────────── -->
+      <div id="tab-overview" class="tab-content active">
+
+        <!-- KPI row -->
+        <div class="kpi-row" id="kpiRow"></div>
+
+        <!-- Price chart + performance -->
+        <div class="grid-2-1">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Évolution du cours</span>
+              <div class="chart-legend">
+                <span class="legend-dot" style="background:#3b82f6"></span>Prix
+                <span class="legend-dot" style="background:#f59e0b"></span>Moy. 20j
+                <span class="legend-dot" style="background:#a855f7"></span>Moy. 50j
+                <span class="legend-dot" style="background:#ef4444"></span>Moy. 200j
+              </div>
+            </div>
+            <p class="card-hint">
+              Les lignes en pointillés sont des <strong>moyennes mobiles</strong> — elles lissent les variations pour montrer la tendance générale.
+              Si le prix est <em>au-dessus</em> des moyennes → tendance haussière. S'il est <em>en-dessous</em> → tendance baissière.
+            </p>
+            <div class="chart-wrap"><canvas id="priceChart"></canvas></div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><span class="card-title">Performance</span></div>
+            <div id="performanceCards" class="perf-grid"></div>
+            <div class="card-header" style="margin-top:1rem"><span class="card-title">Risque & Rendement</span></div>
+            <div id="riskCards" class="risk-grid"></div>
+          </div>
+        </div>
+
+        <!-- Volume chart -->
+        <div class="card">
+          <div class="card-header"><span class="card-title">Volume d'échanges</span></div>
+          <div class="chart-wrap chart-sm"><canvas id="volumeChart"></canvas></div>
+        </div>
+
+        <!-- Company description -->
+        <div class="card" id="companyDescCard">
+          <div class="card-header"><span class="card-title">À propos de l'entreprise</span></div>
+          <p id="companyDescription" class="description-text"></p>
+          <div id="companyDetails" class="company-details-grid"></div>
+        </div>
+      </div>
+
+      <!-- ─── TAB: TECHNICAL ────────────────────────────── -->
+      <div id="tab-technical" class="tab-content hidden">
+
+        <div class="info-banner">
+          💡 <strong>Pour les débutantes :</strong> Ces graphiques servent à repérer le bon moment pour acheter ou vendre. Ils ne garantissent rien — utilisez-les comme des indices supplémentaires, jamais seuls.
+        </div>
+
+        <div class="grid-1-1">
+          <!-- RSI -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">RSI — Force de l'action (14 jours)</span>
+              <span id="rsiValue" class="indicator-badge">—</span>
+            </div>
+            <div class="indicator-explainer">
+              <div class="ie-zone ie-sell">Au-dessus de 70 → trop acheté, prudence</div>
+              <div class="ie-zone ie-neutral">Entre 30 et 70 → zone neutre, normal</div>
+              <div class="ie-zone ie-buy">En-dessous de 30 → très peu cher, possible opportunité</div>
+            </div>
+            <div class="chart-wrap chart-sm"><canvas id="rsiChart"></canvas></div>
+          </div>
+
+          <!-- MACD -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">MACD — Élan du cours</span>
+              <span id="macdSignal" class="indicator-badge">—</span>
+            </div>
+            <div class="indicator-explainer">
+              <div class="ie-zone ie-buy">Ligne bleue passe au-dessus de la ligne orange → signal d'achat potentiel</div>
+              <div class="ie-zone ie-sell">Ligne bleue passe en-dessous de la ligne orange → signal de vente potentiel</div>
+            </div>
+            <div class="chart-wrap chart-sm"><canvas id="macdChart"></canvas></div>
+          </div>
+        </div>
+
+        <!-- Bollinger Bands -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Bandes de Bollinger — Limites de prix habituelles</span>
+          </div>
+          <p class="card-hint">
+            Imaginez un couloir dans lequel le prix se déplace habituellement. La <strong>bande rouge</strong> est le plafond, la <strong>bande verte</strong> est le plancher.
+            Quand le prix sort du couloir vers le haut → l'action est peut-être trop chère. Vers le bas → peut-être une opportunité d'achat.
+          </p>
+          <div class="chart-wrap"><canvas id="bollingerChart"></canvas></div>
+        </div>
+
+        <!-- Returns distribution -->
+        <div class="card">
+          <div class="card-header"><span class="card-title">Fréquence des gains et pertes quotidiens</span></div>
+          <p class="card-hint">
+            Ce graphique montre à quelle fréquence l'action a gagné ou perdu de la valeur chaque jour. Les barres vertes = jours positifs, barres rouges = jours négatifs.
+            Plus les barres sont étalées loin du centre, plus l'action est risquée (volatile).
+          </p>
+          <div class="chart-wrap chart-sm"><canvas id="returnsChart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- ─── TAB: FUNDAMENTALS ─────────────────────────── -->
+      <div id="tab-fundamentals" class="tab-content hidden">
+        <div class="grid-1-1-1">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Valorisation</span></div>
+            <div id="valuationMetrics" class="metrics-list"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Rentabilité</span></div>
+            <div id="profitabilityMetrics" class="metrics-list"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Structure financière</span></div>
+            <div id="structureMetrics" class="metrics-list"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><span class="card-title">Guide des indicateurs</span></div>
+          <div class="glossary-grid" id="glossaryGrid"></div>
+        </div>
+      </div>
+
+      <!-- ─── TAB: AI ────────────────────────────────────── -->
+      <div id="tab-ai" class="tab-content hidden">
+
+        <!-- Disclaimer légal permanent -->
+        <div class="disclaimer-banner">
+          <strong>⚠️ Avertissement important</strong> — Cette analyse est générée automatiquement par une intelligence artificielle à titre purement <strong>informatif et éducatif</strong>.
+          Elle ne constitue <strong>pas un conseil en investissement</strong> et ne remplace pas l'avis d'un conseiller financier agréé.
+          Tout investissement comporte un <strong>risque de perte en capital</strong>. Les performances passées ne préjugent pas des performances futures.
+        </div>
+
+        <div id="aiPlaceholder" class="ai-placeholder">
+          <button id="launchAiBtn" class="btn-ai-launch">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+            Lancer l'analyse IA
+          </button>
+          <p>L'IA va analyser tous les indicateurs (prix, volatilité, bénéfices, tendances…) et vous donner une recommandation claire en français, avec des explications adaptées aux débutantes.</p>
+        </div>
+
+        <div id="aiLoading" class="ai-loading hidden">
+          <div class="spinner"></div>
+          <p>L'IA analyse les données… cela peut prendre quelques secondes.</p>
+        </div>
+
+        <div id="aiResults" class="hidden">
+          <!-- Recommendation banner -->
+          <div id="aiBanner" class="ai-banner">
+            <div class="ai-rec-block">
+              <div id="aiRecBadge" class="rec-badge">—</div>
+              <div class="ai-scores">
+                <div class="score-item">
+                  <span class="score-label">Conviction</span>
+                  <div class="score-bar-wrap"><div id="convictionBar" class="score-bar"></div></div>
+                  <span id="convictionVal" class="score-val">—/10</span>
+                </div>
+                <div class="score-item">
+                  <span class="score-label">Risque</span>
+                  <span id="aiRiskBadge" class="risk-badge-ai">—</span>
+                </div>
+                <div class="score-item">
+                  <span class="score-label">Horizon</span>
+                  <span id="aiHorizon" class="horizon-tag">—</span>
+                </div>
+              </div>
+            </div>
+            <div id="aiResume" class="ai-resume"></div>
+          </div>
+
+          <div class="grid-1-1">
+            <!-- Strengths / Weaknesses -->
+            <div class="card">
+              <div class="card-header"><span class="card-title">✅ Points forts</span></div>
+              <ul id="aiStrengths" class="pros-cons-list pros"></ul>
+            </div>
+            <div class="card">
+              <div class="card-header"><span class="card-title">⚠️ Points faibles</span></div>
+              <ul id="aiWeaknesses" class="pros-cons-list cons"></ul>
+            </div>
+          </div>
+
+          <div class="grid-1-1-1">
+            <div class="card">
+              <div class="card-header"><span class="card-title">📊 Analyse technique</span></div>
+              <p id="aiTechnical" class="analysis-text"></p>
+            </div>
+            <div class="card">
+              <div class="card-header"><span class="card-title">🏦 Analyse fondamentale</span></div>
+              <p id="aiFundamental" class="analysis-text"></p>
+            </div>
+            <div class="card">
+              <div class="card-header"><span class="card-title">⚡ Analyse du risque</span></div>
+              <p id="aiRisk" class="analysis-text"></p>
+            </div>
+          </div>
+
+          <div class="grid-1-1">
+            <div class="card">
+              <div class="card-header"><span class="card-title">🚀 Catalyseurs haussiers</span></div>
+              <ul id="aiCatalysts" class="bullet-list"></ul>
+            </div>
+            <div class="card">
+              <div class="card-header"><span class="card-title">🔴 Risques clés</span></div>
+              <ul id="aiRisks" class="bullet-list"></ul>
+            </div>
+          </div>
+
+          <!-- Price target -->
+          <div class="card price-target-card">
+            <div class="card-header"><span class="card-title">🎯 Objectif de prix</span></div>
+            <div id="priceTargetBar" class="price-target-wrap"></div>
+          </div>
+
+          <!-- Beginner advice -->
+          <div class="card advice-card">
+            <div class="card-header"><span class="card-title">💡 Conseil pour débutante</span></div>
+            <p id="aiAdvice" class="advice-text"></p>
+            <div class="card-header" style="margin-top:1.25rem"><span class="card-title">📂 Part de portefeuille suggérée</span></div>
+            <p id="aiAllocation" class="advice-text" style="margin-top:.5rem"></p>
+          </div>
+
+          <!-- Rappel disclaimer en bas -->
+          <div class="disclaimer-footer">
+            Ces informations sont fournies à titre éducatif uniquement et ne constituent pas un conseil en investissement.
+            Consultez un professionnel agréé avant de prendre toute décision financière. <strong>Investir comporte des risques.</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── TAB: COMPARE ──────────────────────────────── -->
+      <div id="tab-compare" class="tab-content hidden">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Comparer plusieurs actions côte à côte</span></div>
+          <p class="card-hint" style="margin-bottom:.75rem">
+            Entrez les symboles des actions séparés par des virgules. Vous pouvez comparer jusqu'à 6 actions.
+            <br>Exemples : <code>AAPL,TSLA,NVDA</code> pour des actions américaines · <code>MC.PA,OR.PA,AIR.PA</code> pour des actions françaises (ajoutez <code>.PA</code> pour la Bourse de Paris).
+          </p>
+          <div class="compare-bar">
+            <input id="compareInputMain" type="text" placeholder="Ex : AAPL, TSLA, MC.PA, OR.PA…" />
+            <button id="compareBtnMain" class="btn-primary">Comparer</button>
+          </div>
+        </div>
+
+        <div id="compareLoading" class="hidden" style="text-align:center;padding:2rem">
+          <div class="spinner"></div><p>Chargement des données…</p>
+        </div>
+
+        <div id="compareResults" class="hidden">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Performance comparative (1 an)</span></div>
+            <div class="chart-wrap"><canvas id="compareChart"></canvas></div>
+          </div>
+          <div class="card" style="overflow-x:auto">
+            <div class="card-header"><span class="card-title">Tableau comparatif</span></div>
+            <table id="compareTable" class="compare-table"></table>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /dashboard -->
+  </main>
+</div>
+
+<!-- Loading overlay -->
+<div id="loadingOverlay" class="loading-overlay hidden">
+  <div class="loading-content">
+    <div class="spinner spinner-lg"></div>
+    <p id="loadingMsg">Chargement des données…</p>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast hidden"></div>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>
